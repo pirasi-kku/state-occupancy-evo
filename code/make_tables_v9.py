@@ -533,7 +533,8 @@ def table_fixedfe_appendix():
     # Portrait since 2026-11-05: footnotesize with 3pt column separation fits
     # the text width; LTcapwidth keeps the caption inside the margins.
     out = ['{\\footnotesize\\setlength{\\tabcolsep}{3pt}'
-           '\\setlength{\\LTcapwidth}{\\textwidth}',
+           '\\setlength{\\LTcapwidth}{\\textwidth}'
+           '\\renewcommand{\\arraystretch}{0.97}',
            '\\begin{longtable}{ll' + 'r' * len(algos) + '}',
            '\\caption{Mean final objective value for every case and algorithm '
            'after $150{,}000$ function evaluations, without early termination; '
@@ -583,7 +584,8 @@ def table_field_appendix():
     # Portrait since 2026-11-05: footnotesize with 3pt column separation fits
     # the text width; LTcapwidth keeps the caption inside the margins.
     out = ['{\\footnotesize\\setlength{\\tabcolsep}{3pt}'
-           '\\setlength{\\LTcapwidth}{\\textwidth}',
+           '\\setlength{\\LTcapwidth}{\\textwidth}'
+           '\\renewcommand{\\arraystretch}{0.97}',
            '\\begin{longtable}{ll' + 'r' * ncol + '}',
            '\\caption{Mean number of function evaluations to reach the VTR for '
            'every case and algorithm, taken over the successful runs; the number '
