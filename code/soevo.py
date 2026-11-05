@@ -46,6 +46,12 @@ import numpy as np
 
 from evo_core import _nearest_neighbour, _bh_clip
 
+# Variable names follow the manuscript: BS best solution, WS worst solution,
+# EB enrichment bound, SL stability level, SB stability bound, XNg nearest
+# neighbour, XCP population centroid, NEL neutron enrichment level (the
+# objective value). Pa, Pb, Pg, Pd are the occupancy vectors of the
+# coefficients alpha, beta, gamma, delta.
+
 
 # ==============================================================================
 #  Core

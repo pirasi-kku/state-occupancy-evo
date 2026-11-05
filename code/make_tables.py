@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-make_tables_v9.py
-=================
+make_tables.py
+==============
 Generates every LaTeX result table of the manuscript from the CSV files in
 ../data/, so no number is transcribed by hand. Writes one .tex file per table
 into ../tables/.
@@ -13,16 +13,16 @@ columns are labelled D1..D5 by position with the actual values in the caption.
 The appendix tables list every algorithm on every case.
 
 Run:
-    python make_tables_v9.py
+    python make_tables.py
 """
 
-import os, sys
+import os
 import numpy as np
 import pandas as pd
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
-_RES  = os.path.join(_ROOT, 'data')        # supplementary layout
+_RES  = os.path.join(_ROOT, 'data')
 OUT   = os.path.join(_ROOT, 'tables')
 os.makedirs(OUT, exist_ok=True)
 
@@ -46,73 +46,21 @@ FUNC_LABEL = {
 
 def load_main():
     """
-    Main benchmark, one row per (function, dimension, algorithm).
-
-    results_field/field_master.csv is the single source: B1_field_merge.py
-    assembles it from every campaign and it carries all 100 cases for all
-    eleven algorithms. Nothing here re-merges the campaign folders, so no table
-    can be built from a different subset than any other table.
+    Main benchmark, one row per (function, dimension, algorithm): all 100
+    cases for every algorithm. Every table built from the main benchmark reads
+    this one file, so no two tables can rest on different subsets.
     """
     return pd.read_csv(os.path.join(_RES, 'results_field', 'field_master.csv'))
 
 
 def load_fixedfe():
     """
-    Fixed-budget benchmark: mean and best final objective value after the full
-    150,000 evaluations, one row per (function, dimension, algorithm). Covers
-    the 90 cases at D<=50 together with D=100 for F11--F20.
+    Runs without early termination: mean and best final objective value after
+    the full 150,000 evaluations, one row per (function, dimension, algorithm).
+    Covers the 90 cases at D <= 50 together with D = 100 for F11-F20.
     """
     p = os.path.join(_RES, 'results_field_fixedfe', 'field_fixedfe_master.csv')
     return pd.read_csv(p) if os.path.exists(p) else None
-
-
-def load_friedman(sub, fname):
-    p = os.path.join(_RES, sub, fname)
-    return pd.read_csv(p) if os.path.exists(p) else None
-
-
-def load_timing():
-    """Timing results: the whole grid timed in one session, SO-EVO and EVO."""
-    p = os.path.join(_RES, 'results_timing', 'timing_master.csv')
-    if not os.path.exists(p):
-        raise FileNotFoundError(p + '')
-    return pd.read_csv(p)
-
-
-def table_timing():
-    """Wall-clock table, generated rather than hand-written."""
-    t = load_timing()
-    dims = sorted(t.D.unique())
-    ev, me = {}, {}
-    for D in dims:
-        s = t[t.D == D]
-        ev[D] = s[s.Algorithm == 'EVO']
-        me[D] = s[s.Algorithm == METHOD]
-
-    def row(label, fn, bold_last=False):
-        cells = []
-        for i, D in enumerate(dims):
-            v = fn(D)
-            txt = '--' if v != v else f'{v:.2f}'
-            if bold_last and i == len(dims) - 1 and v == v:
-                txt = f'\\textbf{{{txt}}}'
-            cells.append(txt)
-        return f'{label} & ' + ' & '.join(cells) + ' \\\\'
-
-    nfun = t[t.Algorithm == 'EVO'].groupby('D').Function.nunique().min()
-    rows = [
-        row('EVO (s)',      lambda D: ev[D].mean_secs.mean()),
-        row('\\pevo{} (s)', lambda D: me[D].mean_secs.mean()),
-        row('Speedup',      lambda D: ev[D].mean_secs.mean() / me[D].mean_secs.mean(), True),
-        row('NFE ratio',    lambda D: ev[D].mean_NFE.mean() / me[D].mean_NFE.mean(), True),
-    ]
-    head = '$D$ & ' + ' & '.join(str(int(d)) for d in dims) + ' \\\\'
-    cap = ('Wall-clock time to reach the VTR and the corresponding evaluation '
-           f'counts, averaged over {nfun} functions at each dimension and 10 runs '
-           'each. Speedup is EVO/SO-EVO in seconds; NFE ratio is the same '
-           'quotient in evaluations. All cells were measured in one session.')
-    body = header(cap, 'tab:timing', 'l' + 'r' * len(dims), head)
-    return body + '\n'.join(rows) + '\n' + FOOTER
 
 
 def dim_slots(df):
@@ -150,11 +98,9 @@ def table_main_percase():
     m = load_main()
     slots = dim_slots(m)
     m['slot'] = [slots[(f, d)] for f, d in zip(m.Function, m.D)]
-    verdict = f'{REWALL}_vs_this'
 
-    # Two rows per function (SO-EVO above, EVO below) and five dimension
-    # columns: the ten-column SO/EVO layout ran past the text width once the
-    # success rate moved from a superscript into parentheses (2026-11-05).
+    # Two rows per function (SO-EVO above, EVO below), one column per
+    # dimension slot.
     rows = []
     for f in sorted(m.Function.unique()):
         g = m[m.Function == f]
@@ -187,40 +133,6 @@ def table_main_percase():
 
 
 # ==============================================================================
-#  Table: speedup of SO-EVO over EVO per case
-# ==============================================================================
-
-def table_speedup():
-    m = load_main()
-    slots = dim_slots(m)
-    m['slot'] = [slots[(f, d)] for f, d in zip(m.Function, m.D)]
-
-    rows = []
-    for f in sorted(m.Function.unique()):
-        g = m[m.Function == f]
-        cells = []
-        for s in range(1, 6):
-            a = g[(g.slot == s) & (g.Algorithm == METHOD)]
-            b = g[(g.slot == s) & (g.Algorithm == 'EVO')]
-            if a.empty or b.empty:
-                cells.append(''); continue
-            x, y = a.mean_NFE.values[0], b.mean_NFE.values[0]
-            if not (np.isfinite(x) and np.isfinite(y)) or x <= 0:
-                cells.append('--'); continue
-            r = y / x
-            cells.append(f'\\textbf{{{r:.1f}}}' if r >= 2 else f'{r:.1f}')
-        rows.append(f'{FUNC_LABEL.get(f, f)} & ' + ' & '.join(cells) + ' \\\\')
-
-    head = 'Function & $D_1$ & $D_2$ & $D_3$ & $D_4$ & $D_5$ \\\\'
-    cap = ('Evaluation-count ratio EVO/SO-EVO per case; values above one favor '
-           'SO-EVO. Bold marks a ratio of at least two. Dimension slots as in '
-           'Table~\\ref{tab:main_percase}; ``--\'\' marks a case in which one '
-           'of the two never reached the VTR.')
-    body = header(cap, 'tab:speedup', 'l' + 'r' * 5, head)
-    return body + '\n'.join(rows) + '\n' + FOOTER
-
-
-# ==============================================================================
 #  Table: credit-assignment ablation
 # ==============================================================================
 
@@ -228,8 +140,7 @@ def common_cases(m, algos):
     """
     (Function, D) pairs on which every algorithm in `algos` has a finite
     mean_NFE, i.e. reached the VTR in at least one run. Means compared across
-    algorithms are taken over this one set, so no average mixes case sets
-    (2026-10-02, review item A1).
+    algorithms are taken over this one set, so no average mixes case sets.
     """
     sub = m[m.Algorithm.isin(algos)]
     piv = sub.pivot_table(index=['Function', 'D'], columns='Algorithm',
@@ -311,109 +222,7 @@ def table_engineering():
 
 
 # ==============================================================================
-#  Table: paired Wilcoxon verdicts
-# ==============================================================================
-
-def table_pairwise():
-    p = os.path.join(_RES, 'results_pairwise_method', 'pairwise_all100.csv')
-    if not os.path.exists(p):
-        return None
-    d = pd.read_csv(p)
-    rows = []
-    for col, lab in [('EVO', 'EVO'),
-                     (REWALL, 'SO-EVO crediting all four')]:
-        if col not in d.columns:
-            continue
-        c = d[col].value_counts()
-        rows.append(f'{lab} & {int(c.get("+", 0))} & {int(c.get("0", 0))} '
-                    f'& {int(c.get("-", 0))} \\\\')
-    head = ('Reference & \\pevo{} faster & No difference & \\pevo{} slower \\\\')
-    n_all = int(d[REWALL].isin(['+', '0', '-']).sum()) if REWALL in d.columns else 0
-    cap = (f'Paired Wilcoxon signed-rank verdicts on NFE-to-VTR over the '
-           f'{len(d)} cases ({n_all} for the all-four variant, which was not run '
-           'on F01--F10 at $D=100$) at the 0.05 significance level, paired by run index over the '
-           'runs in which both algorithms reached the VTR. A case on which the '
-           'two return identical values on every run is counted as no '
-           'difference.')
-    body = header(cap, 'tab:pairwise', 'lccc', head)
-    return body + '\n'.join(rows) + '\n' + FOOTER
-
-
-# ==============================================================================
-#  Table: sensitivity to n_s
-# ==============================================================================
-
-def table_sensitivity():
-    p = os.path.join(_RES, 'results_sensitivity', 'sensitivity_ns.csv')
-    if not os.path.exists(p):
-        raise FileNotFoundError(p + '')
-    d = pd.read_csv(p)
-    d = d[(d.Arm == METHOD) & (d.Sweep == 'ns')]
-    if d.empty:
-        return None
-    g = d.groupby('Value').agg(nfe=('mean_NFE', 'mean'), sr=('SR', 'mean'))
-    g = g.sort_index()
-    vals = [int(v) for v in g.index]
-    r1 = 'Mean NFE & ' + ' & '.join(f'{v:,.0f}'.replace(',', '\\,')
-                                    for v in g.nfe) + ' \\\\'
-    r2 = 'Mean SR (\\%) & ' + ' & '.join(f'{v:.0f}' for v in g.sr) + ' \\\\'
-    head = '$n_s$ & ' + ' & '.join(str(v) for v in vals) + ' \\\\'
-    nf = d.Function.nunique()
-    ncase = d[['Function', 'D']].drop_duplicates().shape[0]
-    cap = (f'Sensitivity to the number of states, averaged over {ncase} cases '
-           f'({nf} functions at four dimensions) with 30 runs each.')
-    body = header(cap, 'tab:sensitivity', 'l' + 'r' * len(vals), head)
-    return body + r1 + '\n' + r2 + '\n' + FOOTER
-
-
-# ==============================================================================
-#  Tables: Friedman mean ranks
-# ==============================================================================
-
-ALGO_LABEL = {METHOD: '\\pevo{}', 'EVO': 'EVO'}
-
-
-def _rank_table(fr, label, caption):
-    if fr is None:
-        return None
-    fr = fr.sort_values('MeanRank')
-    names = [ALGO_LABEL.get(a, a) for a in fr.Algorithm]
-    vals = []
-    for i, v in enumerate(fr.MeanRank):
-        vals.append(f'\\textbf{{{v:.2f}}}' if i == 0 else f'{v:.2f}')
-    head = '& ' + ' & '.join(names) + ' \\\\'
-    row = 'Mean rank & ' + ' & '.join(vals) + ' \\\\'
-    body = header(caption, label, 'l' + 'c' * len(names), head)
-    return body + row + '\n' + FOOTER
-
-
-def table_friedman():
-    fr = load_friedman('results_field', 'field_friedman.csv')
-    if fr is None:
-        return None
-    cd = fr.CD.iloc[0]
-    n = load_main().groupby(['Function', 'D']).ngroups
-    cap = (f'Friedman mean ranks on penalized expected cost over the {n} cases, '
-           f'lower is better. Critical difference {cd:.3f} at the 0.05 '
-           'significance level (Nemenyi).')
-    return _rank_table(fr, 'tab:friedman', cap)
-
-
-def table_friedman_fixedfe():
-    fr = load_friedman('results_field_fixedfe', 'field_fixedfe_friedman.csv')
-    if fr is None:
-        return None
-    cd = fr.CD.iloc[0]
-    f = load_fixedfe()
-    n = f.groupby(['Function', 'D']).ngroups if f is not None else 90
-    cap = (f'Friedman mean ranks on the final objective value after '
-           f'$150{{,}}000$ evaluations, over the {n} cases, lower is better. Critical difference '
-           f'{cd:.3f} at the 0.05 significance level (Nemenyi).')
-    return _rank_table(fr, 'tab:friedman_fixedfe', cap)
-
-
-# ==============================================================================
-#  Tables: fixed budget, final objective value
+#  Tables: final objective value without early termination
 # ==============================================================================
 
 def fmt_fit(v):
@@ -438,7 +247,7 @@ def table_fixedfe_percase():
     nslot = int(f.slot.max())
 
     # Two rows per function (SO-EVO above, EVO below), as in
-    # table_main_percase (2026-11-05).
+    # table_main_percase.
     rows = []
     for fn in sorted(f.Function.unique()):
         g = f[f.Function == fn]
@@ -501,7 +310,7 @@ def grouped_rows(rows):
     """rows: list of (function label, D, list of cell strings), sorted by
     function. The function name is written once per group as a \\multirow
     cell, rows inside a group end in \\\\* so a group is never split across
-    pages, and a \\midrule separates consecutive functions (2026-11-05)."""
+    pages, and a \\midrule separates consecutive functions."""
     out, i = [], 0
     while i < len(rows):
         j = i
@@ -530,8 +339,8 @@ def table_fixedfe_appendix():
                           for (fn, d), r in piv.iterrows()])
     names = ['SO-EVO' if a == METHOD else a for a in algos]
     head = 'Function & $D$ & ' + ' & '.join(names) + ' \\\\'
-    # Portrait since 2026-11-05: footnotesize with 3pt column separation fits
-    # the text width; LTcapwidth keeps the caption inside the margins.
+    # Footnotesize with 3pt column separation fits the portrait text width;
+    # LTcapwidth keeps the caption inside the margins.
     out = ['{\\footnotesize\\setlength{\\tabcolsep}{3pt}'
            '\\setlength{\\LTcapwidth}{\\textwidth}'
            '\\renewcommand{\\arraystretch}{0.97}',
@@ -549,7 +358,7 @@ def table_fixedfe_appendix():
 
 
 # ==============================================================================
-#  Appendix: full field, landscape longtable
+#  Appendix tables: every algorithm on every case
 # ==============================================================================
 
 def table_field_appendix():
@@ -563,7 +372,7 @@ def table_field_appendix():
                         values='mean_NFE')
     # reindex rather than select: an algorithm that never reaches the VTR (FA)
     # has an all-NaN column, which pivot_table drops; keep it as all dashes
-    # so the table covers every algorithm its caption names (2026-11-05).
+    # so the table covers every algorithm its caption names.
     piv = piv.reindex(columns=algos)
     # A case in which no algorithm ever reaches the VTR has no NFE for anyone
     # and is dropped by pivot_table. Put those rows back, as all-dashes, so the
@@ -581,8 +390,6 @@ def table_field_appendix():
     names = ['SO-EVO' if a == METHOD else a for a in piv.columns]
     head = 'Function & $D$ & ' + ' & '.join(names) + ' \\\\'
     ncol = len(piv.columns)
-    # Portrait since 2026-11-05: footnotesize with 3pt column separation fits
-    # the text width; LTcapwidth keeps the caption inside the margins.
     out = ['{\\footnotesize\\setlength{\\tabcolsep}{3pt}'
            '\\setlength{\\LTcapwidth}{\\textwidth}'
            '\\renewcommand{\\arraystretch}{0.97}',

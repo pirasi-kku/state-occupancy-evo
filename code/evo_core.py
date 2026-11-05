@@ -19,11 +19,10 @@ import os
 import numpy as np
 
 # ==============================================================================
-#  SECTION 1: BENCHMARK FUNCTIONS (EVO original paper F1–F20)
+#  Benchmark functions F01-F20 (the benchmark of the original EVO study)
 # ==============================================================================
-# F1–F10:  D=50   F11–F20: D=100
-# Global minimum f* = 0 except F04 = -1, F05 = -(D-1), F18 = 1, F20 = -1;
-# use optimum(fname, D) rather than the registry's 'opt' entry for F05.
+# Global minimum f* = 0 except F04 (-1), F05 (-(D-1)), F18 (1) and F20 (-1).
+# Use optimum(fname, D), which also covers the dimension-dependent F05.
 
 def evo_f1(x):   # Ackley 1
     x = np.asarray(x, dtype=float); D = x.size
@@ -38,11 +37,11 @@ def evo_f3(x):   # Chung Reynolds
     x = np.asarray(x, dtype=float)
     return float(np.sum(x**2)**2)
 
-def evo_f4(x):   # Exponential (max = -1)
+def evo_f4(x):   # Exponential, minimum -1 at x = 0
     x = np.asarray(x, dtype=float)
     return float(-np.exp(-0.5*np.sum(x**2)))
 
-def evo_f5(x):   # Inverted cosine wave (max = -D+1, min varies; global opt -49 for D=50)
+def evo_f5(x):   # Inverted cosine wave, minimum -(D-1) at x = 0
     x = np.asarray(x, dtype=float)
     s = 0.0
     for i in range(x.size - 1):
@@ -100,7 +99,7 @@ def evo_f14(x):  # Schwefel 2.4
     return float(np.sum((x - i)**4))
 
 def evo_f15(x):  # Schwefel 2.25
-    x = np.asarray(x, dtype=float); D = x.size
+    x = np.asarray(x, dtype=float)
     return float(np.sum((x[1:] - x[:-1]**2)**2) + (x[0]-1)**2)
 
 def evo_f16(x):  # Sphere
@@ -111,7 +110,7 @@ def evo_f17(x):  # Step 3
     x = np.asarray(x, dtype=float)
     return float(np.sum(np.floor(np.abs(x))))
 
-def evo_f18(x):  # Trigonometric 2  (global opt = 1)
+def evo_f18(x):  # Trigonometric 2, minimum 1 at x = 0.9
     x = np.asarray(x, dtype=float); D = x.size
     s = 0.0
     for i in range(D):
@@ -120,23 +119,20 @@ def evo_f18(x):  # Trigonometric 2  (global opt = 1)
              + (x[i]-0.9)**2
     return float(1 + s)
 
-def evo_f19(x):  # W / Wavy
+def evo_f19(x):  # Wavy
     x = np.asarray(x, dtype=float); D = x.size
     k = 10
     return float(1 - (1/D)*np.sum(np.cos(k*x)*np.exp(-x**2/2)))
 
-def evo_f20(x):  # Xin-She Yang 6
+def evo_f20(x):  # Xin-She Yang 6, minimum -1 at x = 0
     x = np.asarray(x, dtype=float)
     return float((np.sum(np.sin(x)**2) - np.exp(-np.sum(x**2)))
                  * np.exp(-np.sum(np.sin(np.sqrt(np.abs(x)))**2)))
 
-# ── Function registry ─────────────────────────────────────────────────────────
-# EVO paper original: F1–F10 at D=50, F11–F20 at D=100
-# dim_group = original dimension from EVO paper (used as baseline)
-# DIM_LIST below sets the candidate dimensions.
-#
-# F12_PowellSingular2 requires D divisible by 4.
-# get_valid_dim(fname, d) returns the nearest valid D >= requested D.
+# Function registry. `dim_group` is the dimension at which the original EVO
+# study ran the function (F01-F10 at 50, F11-F20 at 100). The manuscript runs
+# every function at D = 5, 10, 30, 50 and 100. Powell Singular 2 (F12) needs a
+# dimension divisible by four; get_valid_dim() rounds up to the next one.
 
 EVO_BENCHMARK = {
     'F01_Ackley1':         {'func': evo_f1,  'lb': -32,     'ub':  32,    'opt':  0.0,  'dim_group': 50,  'type': 'Multimodal'},
@@ -178,10 +174,9 @@ def get_valid_dim(fname, d):
 
 def get_dim_list(fname):
     """
-    Return the list of dimensions to run for a given function.
-    F1–F10 (dim_group=50):  DIM_LIST filtered to ≤ 50  + always include 50
-    F11–F20 (dim_group=100): full DIM_LIST  + always include 100
-    Each D is passed through get_valid_dim() to handle F12.
+    Dimensions of the original EVO study's grid for `fname`: up to 50 for
+    F01-F10 and up to 100 for F11-F20, each passed through get_valid_dim().
+    The manuscript additionally runs F01-F10 at D = 100.
     """
     info     = EVO_BENCHMARK[fname]
     original = info['dim_group']          # 50 or 100
@@ -191,40 +186,21 @@ def get_dim_list(fname):
     else:
         base = list(DIM_LIST)
         if 100 not in base: base = base + [100]
-    # deduplicate, sort, apply validity fix
-    seen = {}
-    for d in sorted(set(base)):
-        vd = get_valid_dim(fname, d)
-        seen[vd] = d   # keep track of original requested D for label
-    return sorted(seen.keys())
+    return sorted({get_valid_dim(fname, d) for d in base})
 
 
-# Candidate dimensions for get_dim_list()
+# Dimensions used by get_dim_list()
 DIM_LIST = [5, 10, 30, 50, 100]
 
 
-
 # ==============================================================================
-#  SECTION 3: BOUNDARY HANDLING
+#  Boundary handling and nearest neighbour
 # ==============================================================================
 
 def _bh_clip(v, lb, ub):
-    """Simple clip — used by EVO-family algorithms."""
+    """Clip every coordinate to [lb, ub]; used by all algorithms here."""
     return np.clip(v, lb, ub)
 
-def _bh_random(v, lb, ub):
-    """Random reinit for out-of-bounds dimensions."""
-    v = v.copy()
-    mask = (v < lb) | (v > ub)
-    v[mask] = lb + (ub - lb) * np.random.rand(int(mask.sum()))
-    return v
-
-
-# ==============================================================================
-#  SECTION 4: ALGORITHMS
-# ==============================================================================
-
-# ── Helper: nearest neighbour ─────────────────────────────────────────────────
 
 def _nearest_neighbour(pop, i):
     """Return index of the nearest particle to pop[i] (Euclidean distance)."""
@@ -234,13 +210,15 @@ def _nearest_neighbour(pop, i):
     return int(np.argmin(dists))
 
 
-# ── 1. EVO (Azizi et al. 2023) ───────────────────────────────────────────────
+# ==============================================================================
+#  EVO (Azizi et al. 2023)
+# ==============================================================================
 
 def evo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
         seed=None, record_curve=False):
     """
-    EVO: Azizi et al. 2023, Scientific Reports.
-    Equations (5)–(11) verbatim.
+    Energy Valley Optimizer, following Eqs. (5)-(11) of Azizi et al. (2023),
+    Scientific Reports 13:226.
     Returns: (nfe_to_vtr_or_None, best_fitness, curve)
     """
     if seed is not None: np.random.seed(seed)
@@ -264,18 +242,18 @@ def evo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
             if NEL[i] > EB:
                 SB = np.random.rand()
                 if SLi > SB:
-                    # Alpha decay (Eq 5) — replace random subset of dims with BS
+                    # Alpha decay (Eq. 5): copy a random block of coordinates from BS
                     alpha_idx_I  = np.random.randint(1, D+1)
                     alpha_idx_II = np.random.randint(1, alpha_idx_I+1)
                     Xnew1 = pop[i].copy()
                     Xnew1[alpha_idx_II-1:alpha_idx_I] = BS[alpha_idx_II-1:alpha_idx_I]
-                    # Gamma decay (Eq 7) — replace random subset of dims with XNg
+                    # Gamma decay (Eq. 7): copy a random block of coordinates from XNg
                     gamma_idx_I  = np.random.randint(1, D+1)
                     gamma_idx_II = np.random.randint(1, gamma_idx_I+1)
                     Xnew2 = pop[i].copy()
                     Xnew2[gamma_idx_II-1:gamma_idx_I] = XNg[gamma_idx_II-1:gamma_idx_I]
                 else:
-                    # Beta decay (Eq 9, 10)
+                    # Beta decay (Eqs. 9 and 10)
                     r1, r2 = np.random.rand(), np.random.rand()
                     Xnew1 = pop[i] + (r1*BS - r2*XCP) / (SLi + 1e-300)
                     r3, r4 = np.random.rand(), np.random.rand()
@@ -286,7 +264,7 @@ def evo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
                 f1v   = func(Xnew1); f2v = func(Xnew2); FEs += 2
                 Xbest_new, fbest_new = (Xnew1, f1v) if f1v <= f2v else (Xnew2, f2v)
             else:
-                # Positron emission / electron capture (Eq 11)
+                # Positron emission (Eq. 11)
                 r     = np.random.uniform(lb, ub, D)
                 Xbest_new = _bh_clip(pop[i] + r, lb, ub)
                 fbest_new = func(Xbest_new); FEs += 1
@@ -304,17 +282,19 @@ def evo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
 
     return None, float(np.min(fitness)), curve
 
-
-
-# ── 4. Comparison algorithms (ACO, HS, FA, MVO, ISA, CSA) ────────────────────
-# Simplified but faithful implementations for comparison.
-# All follow: (nfe_or_None, best_fitness, curve) return signature.
+# ==============================================================================
+#  Comparison algorithms: ACO-R, HS, FA, MVO, ISA, CSA
+# ==============================================================================
+# Compact implementations of the core update rules of each method, with the
+# control parameters listed in Table 3 of the manuscript. All share the
+# (nfe_to_vtr_or_None, best_fitness, curve) return signature.
 
 def aco_r(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
           seed=None, record_curve=False, archive_size=None):
     """
-    ACO_R: continuous ACO (Socha & Dorigo 2008).
-    Archive-based: keep top N solutions, sample from Gaussian mixture.
+    ACO-R, ant colony optimization for continuous domains (Socha & Dorigo 2008).
+    Keeps an archive of the best solutions and samples new ones from a
+    Gaussian kernel around a rank-weighted archive member.
     """
     if seed is not None: np.random.seed(seed)
     if archive_size is None: archive_size = N
@@ -461,8 +441,10 @@ def isa(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
         alpha=0.2,
         seed=None, record_curve=False):
     """
-    Interior Search Algorithm (Gandomi & Yang 2014).
-    Simplified: mirror reflection + random search components.
+    Interior Search Algorithm (Gandomi 2014), in a simplified form with two
+    moves: a Gaussian step around the best solution scaled by the distance to
+    it, and a step towards a random member of the population plus Gaussian
+    noise.
     """
     if seed is not None: np.random.seed(seed)
     pop = lb + (ub-lb)*np.random.rand(N, D)
@@ -472,7 +454,7 @@ def isa(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
     while FEs < max_FEs:
         best_idx = int(np.argmin(fitness)); best = pop[best_idx]
         for i in range(N):
-            # Mirror search
+            # step around the best solution, or towards a random member
             r = np.random.rand()
             if r < 0.5:
                 x_new = best + alpha * np.random.randn(D) * np.abs(pop[i] - best)
@@ -495,8 +477,8 @@ def csa(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
         pa=0.25, nd=0.15,
         seed=None, record_curve=False):
     """
-    Cuckoo Search Algorithm (Yang & Deb 2009).
-    Levy flights via Mantegna's algorithm.
+    Cuckoo Search (Yang & Deb 2009), with Levy flights drawn by Mantegna's
+    algorithm.
     """
     if seed is not None: np.random.seed(seed)
 
@@ -538,7 +520,7 @@ def csa(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
 
 
 # ==============================================================================
-#  SECTION 6: RUNNER UTILITIES
+#  Runner utilities
 # ==============================================================================
 
 def optimum(fname, D):
@@ -576,14 +558,17 @@ def run_trial(algo_fn, func, lb, ub, D, N, max_FEs, VTR, seed,
     return {'nfe_to_vtr': nfe, 'best_fitness': float(val),
             'curve': curve, 'success': nfe is not None}
 
+
 def aggregate_fitness(trials):
     vals = [t['best_fitness'] for t in trials]
     return {'best': float(np.min(vals)), 'mean': float(np.mean(vals)),
             'worst': float(np.max(vals)), 'std': float(np.std(vals)),
             'raw': vals}
 
+
 def ensure_dir(path):
     os.makedirs(path, exist_ok=True); return path
+
 
 def save_csv(df, path):
     ensure_dir(os.path.dirname(path) or '.'); df.to_csv(path, index=False)

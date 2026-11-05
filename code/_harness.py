@@ -2,22 +2,19 @@
 """
 _harness.py
 ===========
-Shared machinery for the experiment scripts, so every experiment uses identical
-seeding, statistics and file conventions.
+Shared experiment machinery: the protocol defaults, the algorithm registry,
+seeding and the statistics used in the manuscript.
 
-Design rules enforced here:
+Two conventions hold throughout:
 
-1. MATCHED SEEDS. Every arm uses the same seed for a given (problem, D, run),
-   so all arms start from an identical initial population and the Wilcoxon
-   signed-rank test is a genuine paired test (common random numbers).
+1. Matched seeds. Every algorithm uses the same seed for a given (problem, D,
+   run), so all algorithms start from an identical initial population and the
+   Wilcoxon signed-rank test is a genuine paired test.
 
-2. NFE-to-VTR IS THE METRIC for the convergence-speed experiments, matching the
-   paper. Runs that never reach the VTR are excluded from the NFE mean and
-   reported separately as the success rate, so speed is never credited at the
-   expense of reliability.
-
-3. RESUME. A per-case CSV that already exists is loaded and skipped, so an
-   interrupted sweep resumes where it stopped.
+2. NFE-to-VTR is the metric for the convergence-speed experiments. Runs that
+   never reach the VTR are excluded from the NFE mean and reported separately
+   as the success rate, so speed is never credited at the expense of
+   reliability.
 """
 
 import os, sys, datetime
@@ -34,7 +31,7 @@ from soevo import ARMS, ARM_FN, ARM_LABEL, ARM_COLORS
 
 
 # ==============================================================================
-#  Shared config defaults
+#  Protocol defaults
 # ==============================================================================
 # Protocol of the manuscript: VTR 1e-10, N = 50, MaxFEs = 150,000, 50 runs,
 # n_s = 20. The VTR is relative to the optimum: a run succeeds when
@@ -76,11 +73,11 @@ def algo_kwargs(name, ns=DEFAULT_NS, eps=DEFAULT_EPS):
 
 
 # ==============================================================================
-#  Seeding — one shared table, reused by every algorithm
+#  Seeding: one shared table, reused by every algorithm
 # ==============================================================================
 
 def matched_seeds(n_problems, n_runs, base=20240101):
-    """seeds[problem_index][run] — identical across algorithms."""
+    """seeds[problem_index][run], identical across algorithms."""
     rng = np.random.default_rng(base)
     return rng.integers(0, 2**31 - 1, size=(n_problems, n_runs)).tolist()
 
@@ -137,7 +134,7 @@ def paired_wilcoxon_nfe(trials_ref, trials_other, alpha=ALPHA):
 
 
 def paired_wilcoxon_fitness(trials_ref, trials_other, alpha=ALPHA):
-    """Paired Wilcoxon on final fitness (for fixed-budget experiments)."""
+    """Paired Wilcoxon on final fitness (runs without early termination)."""
     va = np.asarray([t['best_fitness'] for t in trials_ref], dtype=float)
     vb = np.asarray([t['best_fitness'] for t in trials_other], dtype=float)
     if len(va) != len(vb) or len(va) < 5:
@@ -154,7 +151,8 @@ def paired_wilcoxon_fitness(trials_ref, trials_other, alpha=ALPHA):
 
 
 def penalised_cost(trials, max_FEs):
-    """Mean NFE with non-converged runs charged the full budget."""
+    """Mean NFE with unsuccessful runs charged the maximum number of
+    function evaluations (the penalized expected cost)."""
     vals = [t['nfe_to_vtr'] if t['nfe_to_vtr'] is not None else max_FEs
             for t in trials]
     return float(np.mean(vals))
@@ -165,11 +163,9 @@ def friedman_ranks(cost_matrix, algo_names):
     cost_matrix: (n_algos, n_cases), lower is better.
     Returns (DataFrame of mean ranks, chi2, p).
 
-    TIES GET AVERAGE RANKS. This matters more than it sounds: on a benchmark
-    where many cases saturate, most algorithms return bit-identical values, and
-    assigning them distinct ranks by array position hands rank 1 to whichever
-    algorithm happens to be listed first. An earlier version of this function
-    did exactly that and produced a ranking that was an artefact of list order.
+    Ties receive the average of the ranks they span. On a benchmark where many
+    cases saturate, several algorithms return identical values, and ranking
+    them by array position would make the result depend on list order.
     """
     from scipy.stats import friedmanchisquare, rankdata
     n_a, n_c = cost_matrix.shape
@@ -200,6 +196,7 @@ def nemenyi_cd(k, n, alpha=0.05):
 # ==============================================================================
 
 class Tee:
+    """Write stdout to the console and to a log file at the same time."""
     def __init__(self, path):
         ensure_dir(os.path.dirname(path) or '.')
         self._f = open(path, 'w', encoding='utf-8', buffering=1)
@@ -210,6 +207,7 @@ class Tee:
 
 
 def start_log(out_base, tag):
+    """Redirect stdout to a time-stamped log file in `out_base`."""
     ensure_dir(out_base)
     ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     tee = Tee(os.path.join(out_base, f'{tag}_log_{ts}.txt'))
@@ -218,6 +216,7 @@ def start_log(out_base, tag):
 
 
 def banner(title, **cfg):
+    """Print an experiment header with its settings and the SO-EVO variants."""
     print("=" * 72)
     print(f"  {title}")
     for k, v in cfg.items():

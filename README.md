@@ -87,8 +87,8 @@ the timing figure is built from that file alone.
 | `evo_core.py` | the benchmark functions, the base EVO implementation and the six comparators, plus shared helpers (nearest neighbour, boundary handling) |
 | `soevo_constrained.py`, `constraint_handling.py`, `cec2020_problems.py` | the constrained variant, the constraint-handling rules and the eight engineering problems |
 | `_harness.py` | the experiment harness: matched seeding, NFE statistics, paired Wilcoxon, penalized cost, Friedman ranks and the Nemenyi critical difference |
-| `make_tables_v9.py` | regenerates every generated `.tex` file in `tables/` from `data/` |
-| `make_figures_v9.py` | regenerates every figure in `figures/` from `data/` |
+| `make_tables.py` | regenerates every generated `.tex` file in `tables/` from `data/` |
+| `make_figures.py` | regenerates every figure in `figures/` from `data/` |
 
 Runs are seeded from one shared seed table (`_harness.matched_seeds`), so every
 algorithm sees the same starting populations on the same case and the paired
@@ -97,8 +97,8 @@ tests are paired by run index.
 To regenerate the tables and figures, run from inside `code/`:
 
 ```
-python make_tables_v9.py
-python make_figures_v9.py
+python make_tables.py
+python make_figures.py
 ```
 
 Both read from `../data/` and write into `../tables/` and `../figures/`, and
@@ -126,10 +126,10 @@ description and is typed in the manuscript.
 
 | figure file | manuscript |
 |---|---|
-| `fig_speedup_v9.pdf` | Fig. 1, per-case evaluation-count ratio EVO/SO-EVO by dimension |
-| `fig_cd_diagram_v9.pdf` | Fig. 2, critical-difference diagrams |
-| `fig_sensitivity_v9.pdf` | Fig. 3, sensitivity to $n_s$ |
-| `fig_timing_v9.pdf` | Fig. 4, wall-clock cost |
+| `fig_speedup.pdf` | Fig. 1, per-case evaluation-count ratio EVO/SO-EVO by dimension |
+| `fig_cd_diagram.pdf` | Fig. 2, critical-difference diagrams |
+| `fig_sensitivity.pdf` | Fig. 3, sensitivity to $n_s$ |
+| `fig_timing.pdf` | Fig. 4, wall-clock cost |
 
 Requirements: Python 3.10 or later with `numpy`, `scipy`, `pandas` and
 `matplotlib`.

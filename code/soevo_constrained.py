@@ -23,14 +23,7 @@ and worst individuals) use the penalised scalar under every rule, so the EVO
 machinery is unchanged; only acceptance follows the chosen rule.
 """
 
-import os, sys
 import numpy as np
-
-_HERE   = os.path.dirname(os.path.abspath(__file__))
-_PARENT = os.path.dirname(_HERE)
-for _p in (_HERE, _PARENT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 from evo_core import _nearest_neighbour, _bh_clip
 
@@ -55,7 +48,7 @@ def accepts(mode, obj_new, vio_new, obj_cur, vio_cur, pen_new, pen_cur, eps=0.0)
     """
     True if the candidate should replace the incumbent.
 
-    mode='penalty'      compare penalised scalars (original behaviour)
+    mode='penalty'      compare penalised scalars (static penalty)
     mode='feasibility'  Deb's rules
     mode='epsilon'      Deb's rules with violations <= eps counted as feasible
     """
@@ -77,7 +70,7 @@ def accepts(mode, obj_new, vio_new, obj_cur, vio_cur, pen_new, pen_cur, eps=0.0)
 
 
 def _eps_schedule(FEs, max_FEs, eps0, eps_frac=0.4, cp=3.0):
-    """eps decays from eps0 to 0 over the first eps_frac of the budget."""
+    """eps decays from eps0 to 0 over the first eps_frac of the evaluations."""
     Tc = eps_frac * max_FEs
     if FEs >= Tc:
         return 0.0
@@ -99,7 +92,7 @@ def soevo_cst(obj_fn, con_fn, lb, ub, D, N=50, max_FEs=20000,
 
     Returns dict with best feasible/penalised results and diagnostics:
         best_obj    objective of the best FEASIBLE solution found (nan if none)
-        best_pen    best penalised value (comparable to the original protocol)
+        best_pen    best penalised value f + penalty * violation
         feasible    True if any feasible solution was found
         best_vio    violation of the returned best point
         FEs         evaluations used
@@ -109,17 +102,18 @@ def soevo_cst(obj_fn, con_fn, lb, ub, D, N=50, max_FEs=20000,
     clip_lb = lb if clip_lb is None else clip_lb
     clip_ub = ub if clip_ub is None else clip_ub
 
+    # coefficient states and one occupancy vector per coefficient, as in soevo.py
     parts = np.array([(k + 1) / (ns + 1) for k in range(ns + 1)])
     Pa = np.ones(ns + 1); Pb = np.ones(ns + 1)
     Pg = np.ones(ns + 1); Pd = np.ones(ns + 1)
 
-    def _sample_plain(pot):
-        return int(np.random.choice(ns + 1, p=pot / pot.sum()))
+    def _sample_plain(occ):
+        return int(np.random.choice(ns + 1, p=occ / occ.sum()))
 
-    def _sample_eps(pot, e):
+    def _sample_eps(occ, e):
         if np.random.rand() < e:
             return int(np.random.randint(ns + 1))
-        return int(np.random.choice(ns + 1, p=pot / pot.sum()))
+        return int(np.random.choice(ns + 1, p=occ / occ.sum()))
 
     def evaluate(x):
         xc = np.clip(x, clip_lb, clip_ub)
@@ -218,6 +212,10 @@ def soevo_cst(obj_fn, con_fn, lb, ub, D, N=50, max_FEs=20000,
 def evo_cst(obj_fn, con_fn, lb, ub, D, N=50, max_FEs=20000,
             cst='feasibility', penalty=1e6, seed=None,
             clip_lb=None, clip_ub=None):
+    """
+    EVO with the same constraint handling and return value as soevo_cst(), so
+    the two differ only in their operators and coefficient sampling.
+    """
     if seed is not None:
         np.random.seed(seed)
     clip_lb = lb if clip_lb is None else clip_lb
