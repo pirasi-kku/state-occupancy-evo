@@ -1,0 +1,9 @@
+Algorithm,outright,shared,attains_best,n_cases
+SOEVO_sel,14,61,75,90
+EVO,4,59,63,90
+ACO,6,22,28,90
+CSA,1,25,26,90
+HS,0,6,6,90
+ISA,1,0,1,90
+MVO,0,1,1,90
+FA,0,0,0,90
