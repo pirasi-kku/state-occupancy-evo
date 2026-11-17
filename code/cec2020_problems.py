@@ -374,13 +374,9 @@ CEC2020 = {
         best_known=5.2445076066e+02,
         desc='10-bar truss design with frequency constraints'),
 
-    # NOTE ON SENSE: Problem-Definitions.pdf states "Maximize" for the load
-    # capacity, but the competition harness minimises whatever cec20_func.m
-    # returns, and it returns C unnegated. Verified numerically: the published
-    # f(x*) = 14614.14 lies BELOW the minimum feasible value found by random
-    # search (22314) and is approached from above when minimising (17035 after
-    # 40k evaluations), whereas the feasible maximum is ~58148. The benchmark
-    # therefore treats RC28 as a minimisation of the returned value.
+    # Problem-Definitions.pdf states "Maximize", but cec20_func.m returns C
+    # unnegated and the competition harness minimises it; the published
+    # best-known value 14614.14 is consistent with minimisation only.
     'RC28_RollingBearing': dict(
         obj=rc28_obj, con=rc28_con, D=10, n_con=9, sense='min',
         lb=np.array([125.0, 10.5, 4.51, 0.515, 0.515, 0.4, 0.6, 0.3, 0.02, 0.6]),

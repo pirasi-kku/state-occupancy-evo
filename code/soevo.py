@@ -4,53 +4,36 @@ soevo.py
 ========
 SO-EVO: State-Occupancy-Guided Energy Valley Optimizer.
 
-One parameterised implementation with two switches.
-
   sampling = 'occupancy'  each coefficient is drawn from its occupancy vector,
-                          in proportion to occupancy (the published method)
-           = 'epsilon'    epsilon-greedy variant: with probability eps a
-                          uniform draw over the states, otherwise the
-                          occupancy draw; eps decays linearly from eps_init to
-                          eps_end over the run
+                          in proportion to the occupancy values (SO-EVO)
+           = 'epsilon'    epsilon-greedy: with probability eps a uniform draw
+                          over the states, otherwise the occupancy draw; eps
+                          decays linearly from eps_init to eps_end
+           = 'uniform'    no occupancy vectors: the four coefficients are
+                          drawn from U(0,1) as in EVO, with the SO-EVO
+                          operators (EVO with the rewritten operators)
 
-  credit   = 'selective'  an accepted move increments only the occupancy
-                          vectors whose coefficient entered the surviving
-                          candidate (the published method)
-           = 'all'        an accepted move increments all four vectors
+  credit   = 'selective'  an accepted candidate increments only the occupancy
+                          vectors of the coefficients used to generate it
+           = 'all'        an accepted candidate increments all four vectors
 
-Which coefficients enter which candidate:
+Coefficients used by each candidate:
 
-  branch                     condition      Xnew1            Xnew2
-  -------------------------  -------------  ---------------  ----------------
-  high-energy alpha/gamma    SL_i >  SB     alpha            beta, gamma
-  high-energy beta           SL_i <= SB     alpha, beta      gamma, delta
-  low-energy positron        NEL_i <= EB    delta            --
-
-Only one of Xnew1/Xnew2 survives the internal comparison, so under
-credit='selective' only the surviving candidate's coefficients are rewarded.
-
-Arms used in the manuscript:
-
-  key             sampling    credit      manuscript name
-  --------------  ----------  ----------  ---------------------------
-  SOEVO_sel       occupancy   selective   SO-EVO
-  SOEVO_all       occupancy   all         SO-EVO crediting all four
-  SOEVO_eps_sel   epsilon     selective   selective, epsilon-greedy
-  SOEVO_eps_all   epsilon     all         all four, epsilon-greedy
-
-The epsilon variant draws an extra random number per coefficient for the
-greedy test, so runs are compared per seed only within one sampling mode.
+  move          condition       X1             X2
+  ------------  --------------  -------------  -------------
+  alpha/gamma   SL_i >  SB      alpha          beta, gamma
+  beta          SL_i <= SB      alpha, beta    gamma, delta
+  positron      f(X_i) <= EB    delta          --
 """
 
 import numpy as np
 
 from evo_core import _nearest_neighbour, _bh_clip
 
-# Variable names follow the manuscript: BS best solution, WS worst solution,
-# EB enrichment bound, SL stability level, SB stability bound, XNg nearest
-# neighbour, XCP population centroid, NEL neutron enrichment level (the
-# objective value). Pa, Pb, Pg, Pd are the occupancy vectors of the
-# coefficients alpha, beta, gamma, delta.
+# BS best solution, WS worst solution, EB enrichment bound, SL stability
+# level, SB stability bound, XNg nearest neighbour, XCP population centroid,
+# NEL objective values. Pa, Pb, Pg, Pd are the occupancy vectors of alpha,
+# beta, gamma, delta.
 
 
 # ==============================================================================
@@ -64,16 +47,16 @@ def soevo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
     """
     Returns: (nfe_to_vtr_or_None, best_fitness, curve)
     """
-    if sampling not in ('occupancy', 'epsilon'):
-        raise ValueError(f"sampling must be 'occupancy' or 'epsilon', got {sampling!r}")
+    if sampling not in ('occupancy', 'epsilon', 'uniform'):
+        raise ValueError("sampling must be 'occupancy', 'epsilon' or 'uniform', "
+                         f"got {sampling!r}")
     if credit not in ('all', 'selective'):
         raise ValueError(f"credit must be 'all' or 'selective', got {credit!r}")
 
     if seed is not None:
         np.random.seed(seed)
 
-    # coefficient states c_k = (k+1)/(ns+1), k = 0..ns; one occupancy vector
-    # per coefficient, every state starting at an occupation of one
+    # states c_k = (k+1)/(ns+1), k = 0..ns; occupancy vectors start at one
     parts = np.array([(k + 1) / (ns + 1) for k in range(ns + 1)])
     Pa = np.ones(ns + 1); Pb = np.ones(ns + 1)
     Pg = np.ones(ns + 1); Pd = np.ones(ns + 1)
@@ -94,10 +77,10 @@ def soevo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
     curve   = [float(np.min(fitness))] if record_curve else None
 
     while FEs < max_FEs:
-        if sampling == 'occupancy':
-            eps = None
-        else:
+        if sampling == 'epsilon':
             eps = eps_init + (eps_end - eps_init) * (FEs / max_FEs)
+        else:
+            eps = None
 
         BS_idx = int(np.argmin(fitness)); BS = pop[BS_idx]
         WS_val = float(np.max(fitness));  BS_val = float(np.min(fitness))
@@ -109,7 +92,10 @@ def soevo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
             SLi = (NEL[i] - BS_val) / (WS_val - BS_val + 1e-300)
             XNg = pop[_nearest_neighbour(pop, i)]
 
-            if sampling == 'occupancy':
+            if sampling == 'uniform':
+                ka = kb = kg = kd = None
+                a, b, g, d = np.random.rand(4)
+            elif sampling == 'occupancy':
                 ka = _sample_plain(Pa); a = parts[ka]
                 kb = _sample_plain(Pb); b = parts[kb]
                 kg = _sample_plain(Pg); g = parts[kg]
@@ -147,7 +133,9 @@ def soevo(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
 
             if fbest < fitness[i]:
                 pop[i] = Xbest; fitness[i] = fbest
-                if credit == 'all':
+                if sampling == 'uniform':
+                    pass
+                elif credit == 'all':
                     Pa[ka] += 1; Pb[kb] += 1; Pg[kg] += 1; Pd[kd] += 1
                 else:
                     if 'a' in used: Pa[ka] += 1
@@ -176,6 +164,7 @@ ARMS = {
     'SOEVO_all':     dict(sampling='occupancy', credit='all'),
     'SOEVO_eps_sel': dict(sampling='epsilon',   credit='selective'),
     'SOEVO_eps_all': dict(sampling='epsilon',   credit='all'),
+    'OPS_uniform':   dict(sampling='uniform',   credit='all'),
 }
 
 ARM_LABEL = {
@@ -183,6 +172,7 @@ ARM_LABEL = {
     'SOEVO_all':     'SO-EVO crediting all four',
     'SOEVO_eps_sel': 'selective, epsilon-greedy',
     'SOEVO_eps_all': 'all four, epsilon-greedy',
+    'OPS_uniform':   'EVO with the rewritten operators',
 }
 
 ARM_COLORS = {
@@ -190,6 +180,7 @@ ARM_COLORS = {
     'SOEVO_all':     '#F4A261',
     'SOEVO_eps_sel': '#06D6A0',
     'SOEVO_eps_all': '#F4A261',
+    'OPS_uniform':   '#8D99AE',
     'EVO':           '#1D6FA4',
 }
 

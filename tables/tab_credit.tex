@@ -1,6 +1,6 @@
 \begin{table}[htbp]
 \centering\small
-\caption{Credit assignment, averaged over the 71 cases on which every row reaches the VTR in at least one run. Mean NFE is taken over the successful runs. Every row uses the same operators, sampling and maximum number of function evaluations, and differs only in which occupancy vectors are incremented on an accepted move.}
+\caption{The performance comparison of the selective credit and the all-four credit, averaged over the 71 cases on which every row reaches the VTR in at least one run. The mean NFE is calculated over the successful runs. The four variants of SO-EVO use the same movement operators and differ only in the sampling and the occupancy update.}
 \label{tab:credit}
 \begin{tabular}{lrr}
 \toprule
@@ -10,7 +10,7 @@ selective & 3\,130 & 97.5 \\
 all four & 3\,440 & 97.6 \\
 selective\, $\epsilon$-greedy sampling & 3\,243 & 97.3 \\
 all four\, $\epsilon$-greedy sampling & 3\,387 & 97.3 \\
-EVO (no occupancy learning) & 24\,454 & 94.4 \\
+EVO & 24\,454 & 94.4 \\
 \bottomrule
 \end{tabular}
 \end{table}

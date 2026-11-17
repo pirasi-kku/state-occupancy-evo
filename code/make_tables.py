@@ -118,15 +118,15 @@ def table_main_percase():
         rows.append(' & EVO & ' + ' & '.join(ev) + ' \\\\[2pt]')
 
     head = 'ID & & $D_1$ & $D_2$ & $D_3$ & $D_4$ & $D_5$ \\\\'
-    cap = ('Mean number of function evaluations to reach the VTR, SO-EVO '
-           'against EVO, over 50 runs; function names are given in '
-           'Table~\\ref{tab:functions}. Dimension slots are $D_1$--$D_5$ = '
-           '$5,10,30,50,100$, except Powell Singular~2 which requires a '
-           'dimension divisible by four and uses $8,12,32,52,100$. A blank cell '
-           'marks a dimension not run for that function. A percentage in '
-           'parentheses gives the success rate when it '
-           'is below $100\\%$; ``--\'\' marks a case in which no run reached '
-           'the VTR.')
+    cap = (r'The performance comparison of SO-EVO and EVO using the VTR over '
+           r'50 independent runs. Each cell gives the mean number of function '
+           r'evaluations to reach the VTR, with the success rate in parentheses '
+           r'when the success rate is below $100\%$. The dimensions '
+           r'$D_1$--$D_5$ are $5,10,30,50,100$, except for Powell Singular~2 '
+           r'(F12), which uses $8,12,32,52,100$. The function names are given '
+           r'in Table~\ref{tab:functions}. A blank cell represents a case that '
+           r"is not run, and ``--'' represents a case in which no run reaches "
+           r'the VTR.')
     body = header(cap, 'tab:main_percase', 'll' + 'r' * 5, head,
                   size='footnotesize')
     return body + '\n'.join(rows) + '\n' + FOOTER
@@ -154,7 +154,7 @@ def table_credit():
     arms = [(METHOD, 'selective'), (REWALL, 'all four'),
             ('SOEVO_eps_sel', 'selective, $\\epsilon$-greedy sampling'),
             ('SOEVO_eps_all', 'all four, $\\epsilon$-greedy sampling'),
-            ('EVO', 'EVO (no occupancy learning)')]
+            ('EVO', 'EVO')]
     arms = [(a, lab) for a, lab in arms if a in set(m.Algorithm)]
     common = common_cases(m, [a for a, _ in arms])
     mc = m.set_index(['Function', 'D']).loc[common].reset_index()
@@ -165,13 +165,61 @@ def table_credit():
         rows.append(f'{lab} & {nfe:,.0f} & {sr:.1f} \\\\'.replace(',', '\\,'))
     head = 'Credit rule & Mean NFE & Mean SR (\\%) \\\\'
     ncase = len(common)
-    cap = (f'Credit assignment, averaged over the {ncase} cases on which every '
-           'row reaches the VTR in at least one run. Mean NFE is taken over the '
-           'successful runs. Every row uses the '
-           'same operators, sampling and maximum number of function evaluations, '
-           'and differs only in which '
-           'occupancy vectors are incremented on an accepted move.')
+    cap = ('The performance comparison of the selective credit and the '
+           f'all-four credit, averaged over the {ncase} cases on which every '
+           'row reaches the VTR in at least one run. The mean NFE is '
+           'calculated over the successful runs. The four variants of SO-EVO '
+           'use the same movement operators and differ only in the sampling '
+           'and the occupancy update.')
     body = header(cap, 'tab:credit', 'lrr', head)
+    return body + '\n'.join(rows) + '\n' + FOOTER
+
+
+# ==============================================================================
+#  Table: EVO, EVO with the rewritten operators, SO-EVO
+# ==============================================================================
+
+def table_opsablation():
+    p = os.path.join(_RES, 'results_opsablation', 'ops_percase.csv')
+    if not os.path.exists(p):
+        return None
+    t = pd.read_csv(p)
+    c3 = t.dropna(subset=['NFE_EVO', 'NFE_OPS', 'NFE_SOEVO'])
+
+    def wc(sub, col):
+        c = sub[col].value_counts()
+        return f'{int(c.get("+", 0))}/{int(c.get("0", 0))}/{int(c.get("-", 0))}'
+
+    def n(v):
+        return f'{v:,.0f}'.replace(',', '\\,')
+
+    rows = []
+    for d, g in c3.groupby('Dslot'):
+        sub = t[t.Dslot == d]
+        rows.append(f'{d} & {n(g.NFE_EVO.mean())} & {n(g.NFE_OPS.mean())} & '
+                    f'{n(g.NFE_SOEVO.mean())} & {wc(sub, "W_OPS_vs_EVO")} & '
+                    f'{wc(sub, "W_SOEVO_vs_OPS")} \\\\')
+    rows.append('\\midrule')
+    rows.append(f'All & {n(c3.NFE_EVO.mean())} & {n(c3.NFE_OPS.mean())} & '
+                f'{n(c3.NFE_SOEVO.mean())} & {wc(t, "W_OPS_vs_EVO")} & '
+                f'{wc(t, "W_SOEVO_vs_OPS")} \\\\')
+    rows.append(f'Mean SR (\\%) & {t.SR_EVO.mean():.1f} & '
+                f'{t.SR_OPS.mean():.1f} & {t.SR_SOEVO.mean():.1f} & & \\\\')
+    head = ('$D$ & \\multicolumn{2}{c}{EVO} & SO-EVO & \\multicolumn{2}{c}{Wilcoxon test} \\\\\n'
+            '\\cmidrule(lr){2-3}\\cmidrule(lr){5-6}\n'
+            ' & Original & Rewritten & & Operators & Occupancy \\\\')
+    cap = (r'The performance comparison of EVO, EVO with the rewritten '
+           r'operators, and SO-EVO. Under EVO, the columns Original and '
+           r'Rewritten give the results of EVO and EVO with the rewritten '
+           r'operators, respectively. The mean number of function evaluations to '
+           r'reach the VTR is calculated on the cases that the three algorithms '
+           r'solve. The Wilcoxon columns give the numbers of cases, over all '
+           r'cases of each dimension, on which the first algorithm is '
+           r'significantly faster, not significantly different, and '
+           r'significantly slower. The column Operators compares EVO with the '
+           r'rewritten operators against EVO, and the column Occupancy compares '
+           r'SO-EVO against EVO with the rewritten operators.')
+    body = header(cap, 'tab:opsablation', 'lrrrcc', head)
     return body + '\n'.join(rows) + '\n' + FOOTER
 
 
@@ -210,12 +258,11 @@ def table_engineering():
         rows.append(f'{lab.get(a, a)} & ' + ' & '.join(cells) + ' \\\\')
     short = [pr.split('_')[0] for pr in probs]
     head = 'Algorithm & ' + ' & '.join(short) + ' \\\\'
-    cap = ('Gap to the published best-known value (\\%) on the CEC~2020 '
-           'engineering problems, best over 30 runs, feasible runs only. '
-           'Every row uses the static penalty for acceptance except the two '
-           'marked Deb\'s rules, which use the feasibility rules of '
-           '\\citet{Deb2000}. '
-           '``--\'\' marks a problem on which no run ended feasible.')
+    cap = (r'The gap to the published best-known value (\%) on the CEC~2020 '
+           r'engineering problems, using the best feasible solution over 30 '
+           r'runs. All algorithms use the static penalty except the two rows '
+           r"marked Deb's rules, which use the feasibility rules of "
+           r'\citet{Deb2000}.')
     body = header(cap, 'tab:engineering', 'l' + 'r' * len(probs), head,
                   size='footnotesize')
     return body + '\n'.join(rows) + '\n' + FOOTER
@@ -261,11 +308,12 @@ def table_fixedfe_percase():
         rows.append(' & EVO & ' + ' & '.join(ev) + ' \\\\[2pt]')
 
     head = 'ID & & ' + ' & '.join(f'$D_{i}$' for i in range(1, nslot + 1)) + ' \\\\'
-    cap = ('Mean final objective value after $150{,}000$ function '
-           'evaluations, SO-EVO against EVO. Dimension slots as in '
-           'Table~\\ref{tab:main_percase}; a blank cell marks a case not run at '
-           'that slot. Function identifiers are those of '
-           'Table~\\ref{tab:functions}.')
+    cap = (r'The comparison of SO-EVO and EVO using the mean final objective '
+           r'value after $150{,}000$ function evaluations over 50 independent '
+           r'runs. The dimensions $D_1$--$D_5$ are the same as in '
+           r'Table~\ref{tab:main_percase}, and the function names are given in '
+           r'Table~\ref{tab:functions}. A blank cell represents a case that is '
+           r'not run.')
     body = header(cap, 'tab:fixedfe_percase', 'll' + 'r' * nslot, head,
                   size='footnotesize')
     return body + '\n'.join(rows) + '\n' + FOOTER
@@ -297,11 +345,12 @@ def table_fixedfe_wins():
     rows = [f'{"SO-EVO" if a == METHOD else a} & {o + s} & {o} \\\\'
             for a, o, s in rec]
     head = 'Algorithm & Attains best & Outright \\\\'
-    cap = (f'Cases out of {len(piv)} on which each algorithm attains the best '
-           'mean final objective value at MaxFEs${}=150{,}000$. Outright counts '
-           'the cases on which it is strictly better than every other '
-           'algorithm; the remainder are shared with at least one other '
-           'algorithm at the same value.')
+    cap = (f'The number of cases, out of {len(piv)}, on which each algorithm '
+           r'obtains the best mean final objective value after $150{,}000$ '
+           r'function evaluations. The column Outright gives the number of '
+           r'cases on which the algorithm is strictly better than every other '
+           r'algorithm; the other cases are shared with at least one other '
+           r'algorithm.')
     body = header(cap, 'tab:fixedfe_wins', 'lcc', head)
     return body + '\n'.join(rows) + '\n' + FOOTER
 
@@ -345,10 +394,9 @@ def table_fixedfe_appendix():
            '\\setlength{\\LTcapwidth}{\\textwidth}'
            '\\renewcommand{\\arraystretch}{0.97}',
            '\\begin{longtable}{ll' + 'r' * len(algos) + '}',
-           '\\caption{Mean final objective value for every case and algorithm '
-           'after $150{,}000$ function evaluations, without early termination; '
-           'every value is the mean over all 50 runs.}'
-           '\\label{tab:fixedfe_full}\\\\',
+           r'\caption{The mean final objective value of all algorithms after '
+           r'$150{,}000$ function evaluations over 50 independent runs.}'
+           r'\label{tab:fixedfe_full}\\',
            '\\toprule', head, '\\midrule', '\\endfirsthead',
            '\\toprule', head, '\\midrule', '\\endhead',
            '\\bottomrule', '\\endfoot']
@@ -394,12 +442,11 @@ def table_field_appendix():
            '\\setlength{\\LTcapwidth}{\\textwidth}'
            '\\renewcommand{\\arraystretch}{0.97}',
            '\\begin{longtable}{ll' + 'r' * ncol + '}',
-           '\\caption{Mean number of function evaluations to reach the VTR for '
-           'every case and algorithm, taken over the successful runs; the number '
-           'of successful runs behind each mean is not shown here (success rates '
-           'of SO-EVO and EVO are given in Table~\\ref{tab:main_percase}). '
-           '``--\'\' marks a case in which no run '
-           'reached the VTR.}\\label{tab:field_full}\\\\',
+           r'\caption{The mean number of function evaluations to reach the '
+           r'VTR of all algorithms, calculated over the successful runs. The '
+           r'success rates of SO-EVO and EVO are given in '
+           r"Table~\ref{tab:main_percase}. ``--'' represents a case in which "
+           r'no run reaches the VTR.}\label{tab:field_full}\\',
            '\\toprule', head, '\\midrule', '\\endfirsthead',
            '\\toprule', head, '\\midrule', '\\endhead',
            '\\bottomrule', '\\endfoot']
@@ -463,6 +510,7 @@ def main():
         ('tab_functions.tex',    table_functions),
         ('tab_main_percase.tex', table_main_percase),
         ('tab_credit.tex',       table_credit),
+        ('tab_opsablation.tex',  table_opsablation),
         ('tab_fixedfe_percase.tex',  table_fixedfe_percase),
         ('tab_fixedfe_wins.tex',     table_fixedfe_wins),
         ('tab_fixedfe_appendix.tex', table_fixedfe_appendix),

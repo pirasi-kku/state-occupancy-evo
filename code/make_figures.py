@@ -2,9 +2,9 @@
 """
 make_figures.py
 ===============
-Generates every figure of the manuscript from the CSV files in ../data/ and
-writes PDF and PNG files into ../figures/. Every figure is computed at run
-time and prints its source file.
+Generates every figure of the manuscript and writes PDF and PNG files into
+../figures/. Figures 2 to 5 are computed from the CSV files in ../data/ and
+print their source file; Fig. 1 is a schematic of one occupancy vector.
 
 Run:
     python make_figures.py
@@ -66,7 +66,7 @@ def load_main():
 
 
 # ============================================================================
-#  Figure 1: per-case evaluation-count ratio EVO/SO-EVO, by dimension
+#  Fig. 2: per-case evaluation-count ratio EVO/SO-EVO, by dimension
 # ============================================================================
 def fig_speedup(m):
     piv = (m.pivot_table(index=['Function', 'D', 'slot'], columns='Algorithm',
@@ -114,7 +114,7 @@ def fig_speedup(m):
 
 
 # ============================================================================
-#  Figure 2: Friedman / Nemenyi critical-difference diagrams
+#  Fig. 3: Friedman / Nemenyi critical-difference diagrams
 # ============================================================================
 def _cd_axis(ax, ranks, CD, title, lo=1, hi=8):
     """One CD diagram. `ranks` is a list of (display name, mean rank), any order."""
@@ -193,7 +193,7 @@ def fig_cd():
 
 
 # ============================================================================
-#  Figure 4: wall-clock time
+#  Fig. 5: wall-clock time
 # ============================================================================
 def fig_timing():
     src = R('results_timing', 'timing_master.csv')
@@ -241,7 +241,7 @@ def fig_timing():
 
 
 # ============================================================================
-#  Figure 3: sensitivity to n_s
+#  Fig. 4: sensitivity to n_s
 # ============================================================================
 FUNC_SHORT = {'F01_Ackley1': 'Ackley 1', 'F07_Rastrigin': 'Rastrigin',
               'F09_Schwefel12': 'Schwefel 1.2', 'F11_Griewank': 'Griewank',
@@ -294,9 +294,47 @@ def fig_sensitivity():
 
 
 # ============================================================================
+#  Fig. 1: one occupancy vector with n_s = 4, at initialization and after the
+#  four updates of the example in Section 3.3, O = (1, 4, 2, 1, 1)
+# ============================================================================
+def fig_occupancy():
+    ns = 4
+    states = np.arange(1, ns + 2) / (ns + 1)
+    start = np.ones(ns + 1)
+    later = np.array([1, 4, 2, 1, 1], dtype=float)
+
+    def panel(ax, occ, color, title):
+        x = np.arange(len(occ))
+        ax.bar(x, occ, width=0.62, color=color)
+        total = int(occ.sum())
+        for i, v in enumerate(occ):
+            ax.text(i, v + 0.12, f"{int(v)}/{total}", ha="center",
+                    va="bottom", fontsize=11, color="#333333")
+        ax.set_xticks(x)
+        ax.set_xticklabels([f"{c:.1f}" for c in states])
+        ax.set_xlabel("state $c_k$")
+        ax.set_ylim(0, 5.0)
+        ax.set_yticks(range(0, 5))
+        ax.set_title(title, fontsize=12.5)
+        ax.grid(axis="y", alpha=0.3)
+        ax.set_axisbelow(True)
+        ax.spines[["top", "right"]].set_visible(False)
+
+    with plt.rc_context({"font.size": 12}):
+        fig, (a1, a2) = plt.subplots(1, 2, figsize=(8.6, 3.5), sharey=True)
+        panel(a1, start, EVO, "(a)  At initialization")
+        panel(a2, later, SOEVO, "(b)  After four updates")
+        a1.set_ylabel("occupancy value $O_\\phi(k)$")
+        fig.tight_layout()
+        save(fig, "fig_occupancy")
+    print("  [schematic]  fig_occupancy (no data file)")
+
+
+# ============================================================================
 def main():
     os.makedirs(FIG, exist_ok=True)
     print("Regenerating the figures from ../data/:")
+    fig_occupancy()
     m = load_main()
     fig_speedup(m)
     fig_cd()

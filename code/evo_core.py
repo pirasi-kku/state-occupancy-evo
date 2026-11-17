@@ -299,7 +299,6 @@ def aco_r(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
     if seed is not None: np.random.seed(seed)
     if archive_size is None: archive_size = N
     q = 1e-4; xi = 0.85
-    # Initialise archive
     arch = lb + (ub - lb) * np.random.rand(archive_size, D)
     farch = np.array([func(arch[k]) for k in range(archive_size)])
     FEs = archive_size
@@ -312,7 +311,6 @@ def aco_r(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
         weights = weights / weights.sum()
         new_sols = []
         for _ in range(N):
-            # Select solution from archive
             l = int(np.random.choice(archive_size, p=weights))
             # Gaussian std: mean of distances to other archive solutions
             sigma = np.array([xi * np.sum(np.abs(arch[:, j] - arch[l, j])) / (archive_size - 1)
@@ -323,7 +321,6 @@ def aco_r(func, lb, ub, D, N=50, max_FEs=150000, VTR=1e-12,
             fs = func(s); FEs += 1
             new_sols.append((s, fs))
             if FEs >= max_FEs: break
-        # Update archive
         for s, fs in new_sols:
             if fs < farch[-1]:
                 arch[-1] = s; farch[-1] = fs

@@ -171,7 +171,7 @@ def soevo_cst(obj_fn, con_fn, lb, ub, D, N=50, max_FEs=20000,
                 o1, v1, p1 = evaluate(X1)
                 o2, v2, p2 = evaluate(X2)
                 FEs += 2
-                # keep the better candidate under the SAME rule used for acceptance
+                # keep the better candidate under the same rule used for acceptance
                 if accepts(cst, o1, v1, o2, v2, p1, p2, eps_now):
                     Xn, on, vn, pn, used = X1, o1, v1, p1, u1
                 else:

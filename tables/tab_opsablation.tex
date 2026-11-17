@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering\small
+\caption{The performance comparison of EVO, EVO with the rewritten operators, and SO-EVO. Under EVO, the columns Original and Rewritten give the results of EVO and EVO with the rewritten operators, respectively. The mean number of function evaluations to reach the VTR is calculated on the cases that the three algorithms solve. The Wilcoxon columns give the numbers of cases, over all cases of each dimension, on which the first algorithm is significantly faster, not significantly different, and significantly slower. The column Operators compares EVO with the rewritten operators against EVO, and the column Occupancy compares SO-EVO against EVO with the rewritten operators.}
+\label{tab:opsablation}
+\begin{tabular}{lrrrcc}
+\toprule
+$D$ & \multicolumn{2}{c}{EVO} & SO-EVO & \multicolumn{2}{c}{Wilcoxon test} \\
+\cmidrule(lr){2-3}\cmidrule(lr){5-6}
+ & Original & Rewritten & & Operators & Occupancy \\
+\midrule
+5 & 8\,609 & 7\,081 & 3\,199 & 17/3/0 & 16/4/0 \\
+10 & 16\,198 & 3\,950 & 3\,381 & 17/3/0 & 16/4/0 \\
+30 & 27\,591 & 3\,316 & 3\,053 & 15/5/0 & 16/4/0 \\
+50 & 40\,150 & 3\,346 & 3\,070 & 15/5/0 & 16/4/0 \\
+100 & 57\,711 & 3\,264 & 3\,002 & 14/6/0 & 16/4/0 \\
+\midrule
+All & 28\,537 & 4\,307 & 3\,151 & 78/22/0 & 80/20/0 \\
+Mean SR (\%) & 75.0 & 84.1 & 83.1 & & \\
+\bottomrule
+\end{tabular}
+\end{table}

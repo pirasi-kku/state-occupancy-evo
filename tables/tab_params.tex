@@ -1,21 +1,21 @@
 \begin{table}[htbp]
 \centering\small
-\caption{Algorithms and their control parameters. All use $N=50$, with
-  MaxFEs$=150{,}000$ on the benchmark functions and MaxFEs$=20{,}000$ on the
+\caption{Control parameters of the compared algorithms. All algorithms use $N=50$,
+  with MaxFEs$=150{,}000$ on the benchmark functions and MaxFEs$=20{,}000$ on the
   engineering problems.}
 \label{tab:params}
-\begin{tabular}{lll}
+\begin{tabular}{ll}
 \toprule
-Algorithm & Inspiration / reference & Key parameters \\
+Algorithm & Control parameters \\
 \midrule
-\textbf{SO-EVO} (ours) & EVO + occupancy learning           & $n_s=20$ \\
-EVO~\cite{Azizi2023} & Nuclear particle decay             & none \\
-ACO-R~\cite{Socha2008}& Ant colony (continuous)           & archive $=50$, $q=10^{-4}$, $\xi=0.85$ \\
-CSA~\cite{YangDeb2009}& Cuckoo search (L\'evy flights)     & $p_a=0.25$, step scale $0.15$ \\
-FA~\cite{Yang2010b}  & Firefly attraction                 & $\alpha=0.25$, $\beta_0=0.2$, $\gamma=1.0$ \\
-HS~\cite{Geem2001}   & Musical improvisation              & HMCR$=0.95$, PAR$=0.3$, $bw=0.2$ \\
-MVO~\cite{Mirjalili2016}& Multiverse cosmology            & WEP$\in[0.2,1.0]$, TDR$_p=6$ \\
-ISA~\cite{Gandomi2014}& Interior design                   & $\alpha=0.2$ \\
+SO-EVO & $n_s=20$ \\
+EVO~\cite{Azizi2023} & none \\
+ACO-R~\cite{Socha2008} & archive $=50$, $q=10^{-4}$, $\xi=0.85$ \\
+CSA~\cite{YangDeb2009} & $p_a=0.25$, step scale $0.15$ \\
+FA~\cite{Yang2010b} & $\alpha=0.25$, $\beta_0=0.2$, $\gamma=1.0$ \\
+HS~\cite{Geem2001} & HMCR$=0.95$, PAR$=0.3$, $bw=0.2$ \\
+MVO~\cite{Mirjalili2016} & WEP$\in[0.2,1.0]$, TDR$_p=6$ \\
+ISA~\cite{Gandomi2014} & $\alpha=0.2$ \\
 \bottomrule
 \end{tabular}
 \end{table}
